@@ -74,6 +74,7 @@ public:
 		PIN_LED(pinLed),
 		PIN_BUTTON(pinButton)
 	{
+		static_assert(ALLOW_DELAY < INTERVAL_MIN, "ALLOW_DELAY value is invalid");
 	}
 
 	// いきなり始めないようにする
