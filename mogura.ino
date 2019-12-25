@@ -205,16 +205,28 @@ void loop() {
 		break;
 
 	case Sequence::Playing:
-		for(auto&& mogura : moguras) {
-			mogura.Update([&](){
-				board.Buzzer(PORT_A4, BZR_C7, 200);	
-				Serial.println("ふぇぇ");
+		if (playingTimer.IsFired()) {
+			// 各モグラの処理
+			auto okHandler = [&](){
 				score += 1;
-			}, [&](){
-				board.Buzzer(PORT_A4, BZR_C4, 600);
-				Serial.println("らめぇ");
+				board.Buzzer(PORT_A4, BZR_C7, 200);	
+				Serial.println(score);
+			};
+			auto ngHandler = [&]() {
 				score -= 1;
-			});
+				board.Buzzer(PORT_A4, BZR_C4, 600);
+				Serial.println(score);
+			};
+			for(auto&& mogura : moguras) {
+				mogura.Update(okHandler, ngHandler);
+			}
+			// スコアが10以上になったらゲームクリア
+			if (score >= 10) {
+				for(auto&& mogura : moguras)
+					mogura.Reset();
+				currentSequence = Sequence::Finish;
+			}
+			playingTimer.SetNext(20);
 		}
 		break;
 
