@@ -12,7 +12,7 @@ public:
 	using time_t = unsigned long;
 
 	inline bool IsFired() {
-		return millis() > nextProcTime;
+		return millis() > nextProcTime && ++firedCount;
 	}
 	inline void SetNext(time_t during) {
 		nextProcTime = millis() + during;
@@ -20,8 +20,12 @@ public:
 	inline void SetDisable() {
 		nextProcTime = (time_t) -1; // 簡易的に符号なし整数の最大値を代入
 	}
+	inline int GetFiredCount() {
+		return firedCount;
+	}
 private:
 	time_t nextProcTime = 0;
+	int firedCount = 0;				// IsFiredでの確認時、発火していた累計回数
 };
 
 
@@ -68,7 +72,11 @@ public:
 		PIN_LED(pinLed),
 		PIN_BUTTON(pinButton)
 	{
-		timer.SetNext(random(500, 2000));	// 最初は500～2000ms後にセット
+	}
+
+	// いきなり始めないようにする
+	void Start() {
+		timer.SetNext(random(100, 3000));	// 最初は100～2000ms後にセット
 	}
 
 	template<class Fn1, class Fn2>			// ラムダ式をfunctionalを使わず引数にとるためのおまじない
@@ -100,6 +108,11 @@ public:
 		}
 	}
 
+	// 初期状態に戻す
+	void Reset() {
+		Down();
+	}
+
 private:
 	void Up() {
 		isOutsize = true;
@@ -111,6 +124,14 @@ private:
 	}
 };
 
+
+enum class Sequence {
+	Initialize,
+	Countdown,
+	Playing,
+	Finish,
+};
+Sequence currentSequence = Sequence::Initialize;
 
 MoguraDevice moguras[] = {
 	MoguraDevice(14, 2),
@@ -131,19 +152,77 @@ void setup() {
 	pinMode(16, INPUT); // A2
 
 	board.InitSensorPort(PORT_A4, PIDBUZZER);
+
+	currentSequence = Sequence::Countdown;
 }
 
+RealTimeController countdownTimer;
+RealTimeController playingTimer;
 int score = 0;
+
 void loop() {
-	for(auto&& mogura : moguras) {
-		mogura.Update([&](){
-			board.Buzzer(PORT_A4, BZR_C7, 400);	
-			Serial.println("ふぇぇ");
-			score += 1;
-		}, [&](){
-			board.Buzzer(PORT_A4, BZR_C4, 800);
-			Serial.println("らめぇ");
-			score -= 1;
-		});
+	switch (currentSequence)
+	{
+	case Sequence::Initialize:
+		// 到達しないはずのコード
+		break;
+	case Sequence::Countdown:
+		if (countdownTimer.IsFired()) {
+			const int phase = countdownTimer.GetFiredCount();	// ( phase >= 1 )
+			constexpr int LED_PIN[] = {2, 4, 7};
+			// カウントダウン（アップ？）真っ最中
+			if (1 <= phase && phase <= 3) {
+				const int n = phase;	// index:0～nのLEDを点灯
+				for (int i = 0; i < n; ++i)
+					digitalWrite(LED_PIN[i], HIGH);
+				for (int i = n; i < 3; ++i)
+					digitalWrite(LED_PIN[i], LOW);
+				board.Buzzer(PORT_A4, BZR_C5, 200);
+				countdownTimer.SetNext(1000);
+			}
+			// 最後の前に一瞬だけ全消灯してから
+			else if (phase == 4) {
+				for (int i = 0; i < 3; ++i)
+					digitalWrite(LED_PIN[i], LOW);
+				countdownTimer.SetNext(150);
+			}
+			// 少し長く全点灯
+			else if (phase == 5) {
+				for (int i = 0; i < 3; ++i)
+					digitalWrite(LED_PIN[i], HIGH);
+				board.Buzzer(PORT_A4, BZR_C6, 800);
+				countdownTimer.SetNext(800);
+			}
+			// goto next sequence
+			else {
+				for (int i = 0; i < 3; ++i)
+					digitalWrite(LED_PIN[i], LOW);
+				for(auto&& mogura : moguras)
+					mogura.Start();
+				currentSequence = Sequence::Playing;
+			}
+		}
+		break;
+
+	case Sequence::Playing:
+		for(auto&& mogura : moguras) {
+			mogura.Update([&](){
+				board.Buzzer(PORT_A4, BZR_C7, 200);	
+				Serial.println("ふぇぇ");
+				score += 1;
+			}, [&](){
+				board.Buzzer(PORT_A4, BZR_C4, 600);
+				Serial.println("らめぇ");
+				score -= 1;
+			});
+		}
+		break;
+
+	case Sequence::Finish:
+		break;
+	
+	default:
+		break;
 	}
+
 }
