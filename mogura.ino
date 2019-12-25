@@ -1,11 +1,3 @@
-#include <Servo.h>
-#include <Wire.h>
-#include <MMA8653.h>
-#include <Clock.h>
-#include <Studuino.h>
-
-Studuino board;
-
 // リアルタイム処理で時刻を管理するクラス
 class LyricalTimer {
 public:
@@ -144,6 +136,12 @@ MoguraDevice moguras[] = {
 	MoguraDevice(16, 7)
 };
 
+constexpr int PIN_BUZZER = 18;
+constexpr int BZR_C4 = 262;
+constexpr int BZR_C5 = 523;
+constexpr int BZR_C6 = 1047;
+constexpr int BZR_C7 = 2093;
+
 void setup() {
 	randomSeed(analogRead(0));	// 乱数シード生成
 	pinMode(13, OUTPUT);		// オンボードLED
@@ -157,7 +155,7 @@ void setup() {
 	pinMode(15, INPUT); 		// A1
 	pinMode(16, INPUT); 		// A2
 
-	board.InitSensorPort(PORT_A4, PIDBUZZER);
+	pinMode(PIN_BUZZER, OUTPUT);// A4:ブザー
 
 	currentSequence = Sequence::Countdown;
 }
@@ -184,7 +182,8 @@ void loop() {
 					digitalWrite(LED_PIN[i], HIGH);
 				for (int i = n; i < 3; ++i)
 					digitalWrite(LED_PIN[i], LOW);
-				board.Buzzer(PORT_A4, BZR_C5, 200);
+				noTone(PIN_BUZZER);
+				tone(PIN_BUZZER, BZR_C5, 200);
 				countdownTimer.SetNext(1000);
 			}
 			// 一瞬だけ全消灯してから、
@@ -197,7 +196,8 @@ void loop() {
 			else if (phase == 5) {
 				for (int i = 0; i < 3; ++i)
 					digitalWrite(LED_PIN[i], HIGH);
-				board.Buzzer(PORT_A4, BZR_C6, 800);
+				noTone(PIN_BUZZER);
+				tone(PIN_BUZZER, BZR_C6, 800);
 				countdownTimer.SetNext(800);
 			}
 			// goto next sequence
@@ -215,12 +215,14 @@ void loop() {
 		if (playingTimer.IsFired()) {
 			auto okHandler = [&]() {
 				score += 1;
-				board.Buzzer(PORT_A4, BZR_C7, 200);
+				noTone(PIN_BUZZER);
+				tone(PIN_BUZZER, BZR_C7, 200);
 				Serial.println(score);
 			};
 			auto ngHandler = [&]() {
 				score -= 1;
-				board.Buzzer(PORT_A4, BZR_C4, 600);
+				noTone(PIN_BUZZER);
+				tone(PIN_BUZZER, BZR_C4, 600);
 				Serial.println(score);
 			};
 			// 各モグラの処理
