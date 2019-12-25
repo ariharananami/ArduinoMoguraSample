@@ -62,11 +62,12 @@ class MoguraDevice {
 	static constexpr int DURATION_MAX = 1000;	// 　　　　　〃　　　　　最長時間
 	static constexpr int INTERVAL_MIN = 1200;	// 地上に再び現れるまでの最短時間
 	static constexpr int INTERVAL_MAX = 5000;	// 　　　　　〃　　　　　最長時間
-	
+	static constexpr int ALLOW_DELAY = 120;		// モグラが沈んでからもOKとする遅延 ( < INTERVAL_MIN )
 
 	bool isOutside = false;
-	LyricalTimer ledTimer;
 	LyricalButton button;
+	LyricalTimer ledTimer;
+	LyricalTimer::time_t lastDownTime = 0;		// モグラが最後に沈んだときの時刻
 
 public:
 	MoguraDevice(int pinLed, int pinButton):
@@ -87,7 +88,7 @@ public:
 		button.Update(digitalRead(PIN_LED) == 0);
 		if (button.IsClicked()) {
 			// あたり: 押されたときにもぐらが出ていた
-			if (isOutside) {
+			if (isOutside || millis() - lastDownTime <= ALLOW_DELAY) {
 				Down();
 				okHandler();					// あたったときのコールバック
 			}
@@ -124,6 +125,7 @@ private:
 	void Down() {
 		isOutside = false;
 		digitalWrite(PIN_BUTTON, LOW);
+		lastDownTime = millis();
 	}
 };
 
