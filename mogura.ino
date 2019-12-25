@@ -67,7 +67,7 @@ class MoguraDevice {
 	const int PIN_BUTTON;	// ボタンのピン
 
 	bool isOutside = false;
-	LyricalTimer timer;
+	LyricalTimer ledTimer;
 	LyricalButton button;
 
 public:
@@ -79,35 +79,36 @@ public:
 
 	// いきなり始めないようにする
 	void Start() {
-		timer.SetNext(random(100, 3000));	// 最初は100～2000ms後にセット
+		ledTimer.SetNext(random(100, 3000));	// 最初は100～2000ms後にセット
 	}
 
+	// 毎フレーム呼び出す更新処理
 	template<class Fn1, class Fn2>			// ラムダ式をfunctionalを使わず引数にとるためのおまじない
 	void Update(Fn1 okHandler, Fn2 ngHandler) {
 		// あたり判定
 		button.Update(digitalRead(PIN_LED) == 0);
 		if (button.IsClicked()) {
-			// あたり
+			// あたり：押されたときにもぐらが出ていた
 			if (isOutside) {
 				Down();
-				okHandler();
+				okHandler();				// あたったときのコールバック
 			}
-			// はずれ
+			// はずれ：押されたけどもぐらがひっこんでいた
 			else {
-				ngHandler();
+				ngHandler();				// はずれたときのコールバック
 			}
 		}
 
 		// 出現処理
-		if (timer.IsFired()) {
+		if (ledTimer.IsFired()) {
 			if (isOutside) {
 				Down();
 				int during = (random(1200, 5000) + random(1200, 5000)) / 2;	// 平均をとってコクのある乱数に
-				timer.SetNext(during);
+				ledTimer.SetNext(during);
 			}
 			else {
 				Up();
-				timer.SetNext(random(100, 1000));
+				ledTimer.SetNext(random(100, 1000));
 			}
 		}
 	}
@@ -148,12 +149,13 @@ void setup() {
 	pinMode(13, OUTPUT);		// オンボードLED
 	Serial.begin(115200);
 
-	pinMode(2, OUTPUT); // D2
-	pinMode(4, OUTPUT); // D4
-	pinMode(7, OUTPUT); // D7
-	pinMode(14, INPUT); // A0
-	pinMode(15, INPUT); // A1
-	pinMode(16, INPUT); // A2
+	// モグラ
+	pinMode(2, OUTPUT); 		// D2
+	pinMode(4, OUTPUT); 		// D4
+	pinMode(7, OUTPUT); 		// D7
+	pinMode(14, INPUT); 		// A0
+	pinMode(15, INPUT); 		// A1
+	pinMode(16, INPUT); 		// A2
 
 	board.InitSensorPort(PORT_A4, PIDBUZZER);
 
@@ -173,9 +175,9 @@ void loop() {
 
 	case Sequence::Countdown:
 		if (countdownTimer.IsFired()) {
-			const int phase = countdownTimer.GetFiredCount();	// ( phase >= 1 )
+			const int phase = countdownTimer.GetFiredCount();	// IsFireがtrueになった回数 (≧ 1)
 			constexpr int LED_PIN[] = {2, 4, 7};
-			// 1,2,3個のLEDを順番に点灯
+			// 1,2,3個のLEDを順番に点灯して、
 			if (1 <= phase && phase <= 3) {
 				const int n = phase;	// index:0～n-1のLEDを点灯
 				for (int i = 0; i < n; ++i)
@@ -185,13 +187,13 @@ void loop() {
 				board.Buzzer(PORT_A4, BZR_C5, 200);
 				countdownTimer.SetNext(1000);
 			}
-			// 最後の前に一瞬だけ全消灯してから
+			// 一瞬だけ全消灯してから、
 			else if (phase == 4) {
 				for (int i = 0; i < 3; ++i)
 					digitalWrite(LED_PIN[i], LOW);
 				countdownTimer.SetNext(150);
 			}
-			// 少し長く全点灯
+			// 最後に少し長く全点灯
 			else if (phase == 5) {
 				for (int i = 0; i < 3; ++i)
 					digitalWrite(LED_PIN[i], HIGH);
@@ -211,8 +213,7 @@ void loop() {
 
 	case Sequence::Playing:
 		if (playingTimer.IsFired()) {
-			// 各モグラの処理
-			auto okHandler = [&](){
+			auto okHandler = [&]() {
 				score += 1;
 				board.Buzzer(PORT_A4, BZR_C7, 200);
 				Serial.println(score);
@@ -222,9 +223,11 @@ void loop() {
 				board.Buzzer(PORT_A4, BZR_C4, 600);
 				Serial.println(score);
 			};
+			// 各モグラの処理
 			for(auto&& mogura : moguras) {
 				mogura.Update(okHandler, ngHandler);
 			}
+
 			// スコアが10以上になったらゲームクリア
 			if (score >= 10) {
 				for(auto&& mogura : moguras)
@@ -236,6 +239,7 @@ void loop() {
 		break;
 
 	case Sequence::Finish:
+		// 終わっても特に何もしない
 		break;
 	}
 
