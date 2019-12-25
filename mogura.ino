@@ -55,8 +55,14 @@ public:
 
 // もぐら叩きのモグラ。LEDの初期化などは個別に行う点に注意
 class MoguraDevice {
-	const int PIN_LED;		// LEDのピン
-	const int PIN_BUTTON;	// ボタンのピン
+	const int PIN_LED;							// LEDのピン
+	const int PIN_BUTTON;						// ボタンのピン
+
+	static constexpr int DURATION_MIN = 100;	// モグラが地上に出ている最短時間
+	static constexpr int DURATION_MAX = 1000;	// 　　　　　〃　　　　　最長時間
+	static constexpr int INTERVAL_MIN = 1200;	// 地上に再び現れるまでの最短時間
+	static constexpr int INTERVAL_MAX = 5000;	// 　　　　　〃　　　　　最長時間
+	
 
 	bool isOutside = false;
 	LyricalTimer ledTimer;
@@ -75,19 +81,19 @@ public:
 	}
 
 	// 毎フレーム呼び出す更新処理
-	template<class Fn1, class Fn2>			// ラムダ式をfunctionalを使わず引数にとるためのおまじない
+	template<class Fn1, class Fn2>				// ラムダ式をfunctionalを使わず引数にとるためのおまじない
 	void Update(Fn1 okHandler, Fn2 ngHandler) {
 		// あたり判定
 		button.Update(digitalRead(PIN_LED) == 0);
 		if (button.IsClicked()) {
-			// あたり：押されたときにもぐらが出ていた
+			// あたり: 押されたときにもぐらが出ていた
 			if (isOutside) {
 				Down();
-				okHandler();				// あたったときのコールバック
+				okHandler();					// あたったときのコールバック
 			}
-			// はずれ：押されたけどもぐらがひっこんでいた
+			// はずれ: 押されたけどもぐらがひっこんでいた
 			else {
-				ngHandler();				// はずれたときのコールバック
+				ngHandler();					// はずれたときのコールバック
 			}
 		}
 
@@ -95,12 +101,12 @@ public:
 		if (ledTimer.IsFired()) {
 			if (isOutside) {
 				Down();
-				int during = (random(1200, 5000) + random(1200, 5000)) / 2;	// 平均をとってコクのある乱数に
+				int during = (random(INTERVAL_MIN, INTERVAL_MAX) + random(INTERVAL_MIN, INTERVAL_MAX)) / 2; // 平均をとってコクのある乱数に
 				ledTimer.SetNext(during);
 			}
 			else {
 				Up();
-				ledTimer.SetNext(random(100, 1000));
+				ledTimer.SetNext(random(DURATION_MIN, DURATION_MAX));
 			}
 		}
 	}
