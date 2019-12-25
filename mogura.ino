@@ -23,6 +23,9 @@ public:
 	inline int GetFiredCount() {
 		return firedCount;
 	}
+	inline void ResetFiredCount() {
+		firedCount = 0;
+	}
 private:
 	time_t nextProcTime = 0;
 	int firedCount = 0;				// IsFiredでの確認時、発火していた累計回数
@@ -60,10 +63,10 @@ public:
 
 // もぐら叩きのモグラ。LEDの初期化などは個別に行う点に注意
 class MoguraDevice {
-	const int PIN_LED;		// LED 
-	const int PIN_BUTTON;
+	const int PIN_LED;		// LEDのピン
+	const int PIN_BUTTON;	// ボタンのピン
 
-	bool isOutsize = false;
+	bool isOutside = false;
 	LyricalTimer timer;
 	LyricalButton button;
 
@@ -85,21 +88,22 @@ public:
 		button.Update(digitalRead(PIN_LED) == 0);
 		if (button.IsClicked()) {
 			// あたり
-			if (isOutsize) {
+			if (isOutside) {
 				Down();
 				okHandler();
 			}
 			// はずれ
 			else {
 				ngHandler();
-			}		
+			}
 		}
 
 		// 出現処理
 		if (timer.IsFired()) {
-			if (isOutsize) {
+			if (isOutside) {
 				Down();
-				timer.SetNext(random(1000, 2000));
+				int during = (random(1200, 5000) + random(1200, 5000)) / 2;	// 平均をとってコクのある乱数に
+				timer.SetNext(during);
 			}
 			else {
 				Up();
@@ -115,11 +119,11 @@ public:
 
 private:
 	void Up() {
-		isOutsize = true;
+		isOutside = true;
 		digitalWrite(PIN_BUTTON, HIGH);
 	}
 	void Down() {
-		isOutsize = false;
+		isOutside = false;
 		digitalWrite(PIN_BUTTON, LOW);
 	}
 };
@@ -166,13 +170,14 @@ void loop() {
 	case Sequence::Initialize:
 		// 到達しないはずのコード
 		break;
+
 	case Sequence::Countdown:
 		if (countdownTimer.IsFired()) {
 			const int phase = countdownTimer.GetFiredCount();	// ( phase >= 1 )
 			constexpr int LED_PIN[] = {2, 4, 7};
-			// カウントダウン（アップ？）真っ最中
+			// 1,2,3個のLEDを順番に点灯
 			if (1 <= phase && phase <= 3) {
-				const int n = phase;	// index:0～nのLEDを点灯
+				const int n = phase;	// index:0～n-1のLEDを点灯
 				for (int i = 0; i < n; ++i)
 					digitalWrite(LED_PIN[i], HIGH);
 				for (int i = n; i < 3; ++i)
@@ -209,7 +214,7 @@ void loop() {
 			// 各モグラの処理
 			auto okHandler = [&](){
 				score += 1;
-				board.Buzzer(PORT_A4, BZR_C7, 200);	
+				board.Buzzer(PORT_A4, BZR_C7, 200);
 				Serial.println(score);
 			};
 			auto ngHandler = [&]() {
@@ -231,9 +236,6 @@ void loop() {
 		break;
 
 	case Sequence::Finish:
-		break;
-	
-	default:
 		break;
 	}
 
