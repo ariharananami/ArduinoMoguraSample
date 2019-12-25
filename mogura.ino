@@ -6,8 +6,8 @@
 
 Studuino board;
 
-// リアルタイム処理で各動作の時刻を管理するクラス
-class RealTimeController {
+// リアルタイム処理で時刻を管理するクラス
+class LyricalTimer {
 public:
 	using time_t = unsigned long;
 
@@ -64,7 +64,7 @@ class MoguraDevice {
 	const int PIN_BUTTON;
 
 	bool isOutsize = false;
-	RealTimeController timer;
+	LyricalTimer timer;
 	LyricalButton button;
 
 public:
@@ -156,8 +156,8 @@ void setup() {
 	currentSequence = Sequence::Countdown;
 }
 
-RealTimeController countdownTimer;
-RealTimeController playingTimer;
+LyricalTimer countdownTimer;
+LyricalTimer playingTimer;
 int score = 0;
 
 void loop() {
