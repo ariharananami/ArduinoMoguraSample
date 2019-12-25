@@ -12,7 +12,7 @@ public:
 	inline void SetDisable() {
 		nextProcTime = (time_t) -1; // 簡易的に符号なし整数の最大値を代入
 	}
-	inline int GetFiredCount() {
+	inline int GetFiredCount() const {
 		return firedCount;
 	}
 	inline void ResetFiredCount() {
@@ -38,16 +38,16 @@ public:
 		}
 		return 0;
 	}
-	inline int GetPressedDuration() {
+	inline int GetPressedDuration() const {
 		return pressedDuration;
 	}
-	inline bool IsPressed(){
+	inline bool IsPressed() const {
 		return pressedDuration > 0;	// IsClickedと同時にフラグがたつので注意
 	}
-	inline bool IsClicked(){
+	inline bool IsClicked() const {
 		return pressedDuration == 1;
 	}
-	inline bool IsReleased(){
+	inline bool IsReleased() const {
 		return pressedDuration == -1;
 	}
 };
